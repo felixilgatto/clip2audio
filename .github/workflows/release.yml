@@ -46,7 +46,9 @@ jobs:
       #  continue-on-error: false
 
       - name: Build package
-        run: poetry build --format wheel
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ github.event.inputs.tag }}"/' pyproject.toml
+          poetry build --format wheel
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
