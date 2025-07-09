@@ -1,19 +1,20 @@
+import os
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Tuple
 import logging
 import shutil
+from . import config
 
 from .audio_extractor import extract_audio_from_video
 from .utils import is_video_file, is_audio_file
 
 
-DOWNLOAD_DIR = "./downloads"
-AUDIO_DIR = "./audios"
-
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=config.DEBUG_LEVEL, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+os.makedirs(config.DOWNLOAD_DIR, exist_ok=True)
 
 
 def pipeline_handler(event) -> Tuple[bool, str]:
@@ -28,13 +29,13 @@ def pipeline_handler(event) -> Tuple[bool, str]:
     elif is_audio_file(event.src_path, check_content=True)[0]:
         # If the file is already an audio file, just move it
         try:
-            shutil.move(event.src_path, AUDIO_DIR)
-            logging.info(f"Audio file {event.src_path} moved to {AUDIO_DIR}")
+            shutil.move(event.src_path, config.AUDIO_DIR)
+            logging.info(f"Audio file {event.src_path} moved to {config.AUDIO_DIR}")
         except Exception as e:
             logging.error(f"Error moving audio file: {e}")
             return False
 
-        logging.info(f"Audio file moved to {AUDIO_DIR}")
+        logging.info(f"Audio file moved to {config.AUDIO_DIR}")
         return True
 
     else:
@@ -57,7 +58,7 @@ class Handler(FileSystemEventHandler):
 def main():
     observer = Observer()
     handler = Handler()
-    observer.schedule(handler, path=DOWNLOAD_DIR, recursive=True)
+    observer.schedule(handler, path=config.DOWNLOAD_DIR, recursive=True)
     observer.start()
     try:
         while observer.is_alive():

@@ -1,5 +1,7 @@
-backup/
 audios/
 dist/
+tmp/
 downloads/
 __pycache__/
+
+backup/

@@ -1,12 +1,17 @@
-import sys
+import os
 from pathlib import Path
 from typing import Tuple
 
-try:
-    from moviepy import VideoFileClip, AudioFileClip
-except ImportError:
-    print("moviepy library is required. Install it with: pip install moviepy")
-    sys.exit(1)
+from moviepy import VideoFileClip, AudioFileClip
+
+CODEC_MAP = {
+    "mp3": "mp3",
+    "wav": "pcm_s16le",
+    "aac": "aac",
+    "flac": "flac",
+    "ogg": "libvorbis",
+    "m4a": "aac",
+}
 
 
 def is_video_file(file_path: str, check_content: bool = False) -> Tuple[bool, str]:
@@ -229,3 +234,62 @@ def is_audio_file(file_path: str, check_content: bool = False) -> Tuple[bool, st
 
     except Exception as e:
         return False, f"Error checking audio file: {str(e)}"
+
+
+def extract_audio_from_video(
+    video_path: str,
+    audio_format: str,
+    output_path: str | None = None,
+) -> bool:
+    # Load video file
+    try:
+        video_clip = VideoFileClip(video_path)
+    except Exception as e:
+        return False
+
+    # Check if video has audio track
+    if video_clip.audio is None:
+        video_clip.close()
+        return False
+
+    # Extract audio
+    try:
+        audio_clip = video_clip.audio
+
+        # Set codec based on format
+        codec = CODEC_MAP.get(audio_format, None)
+
+        # Write audio file
+        audio_clip.write_audiofile(output_path, codec=codec, logger=None)
+
+    except Exception as e:
+        print("Error extracting audio:", e)
+        video_clip.close()
+        return False
+
+    # Clean up resources
+    video_clip.close()
+
+    # Verify output file was created successfully
+    if not Path(output_path).exists():
+        return False
+
+    # Get file size for confirmation
+    file_size = Path(output_path).stat().st_size
+    if file_size == 0:
+        return False
+
+    return True
+
+
+if __name__ == "__main__":
+    # Example usage
+    video_path = "downloads/Amelie Lens - Serenity.mp4"
+    audio_format = "m4a"
+    output_path = "audios/test_audio.m4a"
+
+    success = extract_audio_from_video(video_path, audio_format, output_path)
+    if success:
+        print(f"Audio extracted successfully to {output_path}")
+    else:
+        print("Failed to extract audio")
