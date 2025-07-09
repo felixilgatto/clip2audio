@@ -38,17 +38,6 @@ def on_created(event):
             ],
             check=True,
         )
-        # luigi.build(
-        #    [
-        #        CreateTrack(
-        #            src_path=str(event.src_path),
-        #            output_dir=str(config.AUDIO_DIR),
-        #            audio_format=config.AUDIO_FORMAT,
-        #            tmp_dir=str(config.TMP_DIR),
-        #        )
-        #    ],
-        #    local_scheduler=True,
-        # )
 
 
 def main():
