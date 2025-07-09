@@ -27,7 +27,7 @@ class ExtractAudio(luigi.Task):
     tmp_dir = luigi.Parameter(default="./tmp")
 
     def requires(self):
-        return LoadTmpCopy(src_path=self.src_path)
+        return LoadTmpCopy(src_path=self.src_path, tmp_dir=self.tmp_dir)
 
     def run(self):
         try:
@@ -49,14 +49,19 @@ class ExtractAudio(luigi.Task):
 class CreateTrack(luigi.Task):
     src_path = luigi.Parameter()
     tmp_id = luigi.Parameter(default=uuid.uuid4())
+    tmp_dir = luigi.Parameter(default="./tmp")
     output_dir = luigi.Parameter(default="./output")
     audio_format = luigi.Parameter(default="m4a")
 
     def requires(self):
         if is_video_file(self.src_path, check_content=True)[0]:
-            return ExtractAudio(src_path=self.src_path)
+            return ExtractAudio(
+                src_path=self.src_path,
+                audio_format=self.audio_format,
+                tmp_dir=self.tmp_dir,
+            )
         else:
-            return LoadTmpCopy(src_path=self.src_path)
+            return LoadTmpCopy(src_path=self.src_path, tmp_dir=self.tmp_dir)
 
     def run(self):
         try:
@@ -82,13 +87,8 @@ if __name__ == "__main__":
                 src_path=str(config.DOWNLOAD_DIR / "Amelie Lens - Serenity.mp4"),
                 output_dir=str(config.AUDIO_DIR),
                 audio_format="m4a",
-                # tmp_dir=str(config.TMP_DIR),
+                tmp_dir=str(config.TMP_DIR),
             )
-            # ExtractAudio(
-            #    src_path=str(config.DOWNLOAD_DIR / "Amelie Lens - Serenity.mp4"),
-            #    audio_format="m4a",
-            #    tmp_dir=str(config.TMP_DIR),
-            # )
         ],
         local_scheduler=True,
     )

@@ -1,64 +1,63 @@
 import os
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from typing import Tuple
+import subprocess
 import logging
-import shutil
 from . import config
-
-from .audio_extractor import extract_audio_from_video
-from .utils import is_video_file, is_audio_file
 
 
 logging.basicConfig(
     level=config.DEBUG_LEVEL, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Ensure the directories exist
+os.makedirs(config.TMP_DIR, exist_ok=True)
 os.makedirs(config.DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(config.AUDIO_DIR, exist_ok=True)
 
 
-def pipeline_handler(event) -> Tuple[bool, str]:
-    if is_video_file(event.src_path, check_content=True)[0]:
-        # If the file is a video, extract audio from it
-        success, detail = extract_audio_from_video(
-            event.src_path, None, "m4a", verbose=False
+def on_created(event):
+    if not event.is_directory:
+        logging.debug("File created: %s" % event.src_path)
+
+        subprocess.run(
+            [
+                "luigi",
+                "--module",
+                "clip2audio.tasks",
+                "CreateTrack",
+                "--src-path",
+                str(event.src_path),
+                "--output-dir",
+                str(config.AUDIO_DIR),
+                "--audio-format",
+                config.AUDIO_FORMAT,
+                "--tmp-dir",
+                str(config.TMP_DIR),
+                "--local-scheduler",
+            ],
+            check=True,
         )
-        logging.info(f"Extracted audio from {event.src_path}: {detail}")
-        return success
-
-    elif is_audio_file(event.src_path, check_content=True)[0]:
-        # If the file is already an audio file, just move it
-        try:
-            shutil.move(event.src_path, config.AUDIO_DIR)
-            logging.info(f"Audio file {event.src_path} moved to {config.AUDIO_DIR}")
-        except Exception as e:
-            logging.error(f"Error moving audio file: {e}")
-            return False
-
-        logging.info(f"Audio file moved to {config.AUDIO_DIR}")
-        return True
-
-    else:
-        logging.warning(f"Unsupported file type: {event.src_path}")
-        return False
-
-
-class Handler(FileSystemEventHandler):
-    @staticmethod
-    def on_any_event(event):
-        if not event.is_directory:
-            match event.event_type:
-                case "created":
-                    print("Watchdog received created event - % s." % event.src_path)
-                    pipeline_handler(event)
-                case _:
-                    pass
+        # luigi.build(
+        #    [
+        #        CreateTrack(
+        #            src_path=str(event.src_path),
+        #            output_dir=str(config.AUDIO_DIR),
+        #            audio_format=config.AUDIO_FORMAT,
+        #            tmp_dir=str(config.TMP_DIR),
+        #        )
+        #    ],
+        #    local_scheduler=True,
+        # )
 
 
 def main():
     observer = Observer()
-    handler = Handler()
+    handler = FileSystemEventHandler()
     observer.schedule(handler, path=config.DOWNLOAD_DIR, recursive=True)
+
+    handler.on_created = on_created
+
     observer.start()
     try:
         while observer.is_alive():
